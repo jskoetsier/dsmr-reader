@@ -8,9 +8,12 @@ echo "=== Installing Grafana ==="
 
 # Add Grafana APT repository
 echo "Adding Grafana repository..."
-sudo apt-get install -y apt-transport-https software-properties-common wget
-wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
+sudo apt-get install -y apt-transport-https software-properties-common wget gnupg
+# Use the modern approach for adding repository keys
+wget -q -O /tmp/grafana.key https://packages.grafana.com/gpg.key
+sudo mkdir -p /etc/apt/keyrings
+sudo gpg --dearmor -o /etc/apt/keyrings/grafana.gpg /tmp/grafana.key
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
 
 # Update package list and install Grafana
 echo "Installing Grafana..."
