@@ -1,22 +1,17 @@
 #!/bin/bash
 # Master script to set up Grafana and create dashboards for DSMR Reader
 
-# Exit on error
+# Exit on error but print the command that failed
 set -e
 
-# Make all scripts executable
-chmod +x install_grafana.sh
-chmod +x create_grafana_dashboards.sh
-chmod +x create_grafana_dashboards_part2.sh
-chmod +x create_grafana_dashboards_part3.sh
+# Function to handle errors
+handle_error() {
+  echo "Error occurred at line $1"
+  exit 1
+}
 
-# Combine the dashboard creation scripts into one
-cat create_grafana_dashboards.sh > combined_create_dashboards.sh
-echo "" >> combined_create_dashboards.sh
-cat create_grafana_dashboards_part2.sh | grep -v "#!/bin/bash" >> combined_create_dashboards.sh
-echo "" >> combined_create_dashboards.sh
-cat create_grafana_dashboards_part3.sh | grep -v "#!/bin/bash" >> combined_create_dashboards.sh
-chmod +x combined_create_dashboards.sh
+# Set up error handling
+trap 'handle_error $LINENO' ERR
 
 echo "=== DSMR Reader Grafana Setup ==="
 echo "This script will install Grafana and create dashboards for your DSMR Reader data."
@@ -34,17 +29,43 @@ echo ""
 echo "Press Enter to continue or Ctrl+C to cancel..."
 read
 
+# Make all scripts executable
+echo "Making scripts executable..."
+chmod +x install_grafana.sh
+chmod +x create_grafana_dashboards.sh
+chmod +x create_grafana_dashboards_part2.sh
+chmod +x create_grafana_dashboards_part3.sh
+
+# Combine the dashboard creation scripts into one
+echo "Combining dashboard creation scripts..."
+cat create_grafana_dashboards.sh > combined_create_dashboards.sh
+echo "" >> combined_create_dashboards.sh
+cat create_grafana_dashboards_part2.sh | grep -v "#!/bin/bash" >> combined_create_dashboards.sh
+echo "" >> combined_create_dashboards.sh
+cat create_grafana_dashboards_part3.sh | grep -v "#!/bin/bash" >> combined_create_dashboards.sh
+chmod +x combined_create_dashboards.sh
+
 # Copy scripts to the server
 echo "Copying scripts to the server..."
-scp install_grafana.sh combined_create_dashboards.sh dsmr@192.168.1.172:/home/dsmr/
+scp -o ConnectTimeout=10 install_grafana.sh combined_create_dashboards.sh dsmr@192.168.1.172:/home/dsmr/ || {
+  echo "Failed to copy scripts to the server. Please check your SSH connection."
+  exit 1
+}
 
 # Execute the installation script on the server
 echo "Installing Grafana on the server..."
-ssh dsmr@192.168.1.172 "cd /home/dsmr && sudo ./install_grafana.sh"
+echo "This may take a few minutes. Please be patient..."
+ssh -o ConnectTimeout=10 dsmr@192.168.1.172 "cd /home/dsmr && sudo bash ./install_grafana.sh" || {
+  echo "Failed to install Grafana. Please check the server logs."
+  exit 1
+}
 
 # Execute the dashboard creation script on the server
 echo "Creating dashboards..."
-ssh dsmr@192.168.1.172 "cd /home/dsmr && ./combined_create_dashboards.sh"
+ssh -o ConnectTimeout=10 dsmr@192.168.1.172 "cd /home/dsmr && bash ./combined_create_dashboards.sh" || {
+  echo "Failed to create dashboards. Please check the server logs."
+  exit 1
+}
 
 echo ""
 echo "=== Setup Complete ==="
@@ -57,6 +78,8 @@ echo "Cleaning up temporary files..."
 rm -f combined_create_dashboards.sh
 
 # Clean up the temporary files on the server
-ssh dsmr@192.168.1.172 "cd /home/dsmr && rm -f combined_create_dashboards.sh"
+ssh -o ConnectTimeout=10 dsmr@192.168.1.172 "cd /home/dsmr && rm -f combined_create_dashboards.sh" || {
+  echo "Warning: Failed to clean up temporary files on the server."
+}
 
 echo "Done!"
