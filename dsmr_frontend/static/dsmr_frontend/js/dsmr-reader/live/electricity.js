@@ -25,6 +25,11 @@ $(document).ready(function () {
                     show: true
                 }
             },
+            backgroundColor: '#343a40',
+            borderColor: '#495057',
+            textStyle: {
+                color: '#f8f9fa'
+            },
             formatter: function (params) {
                 let result = params[0].axisValue + '<br/>';
                 
@@ -46,7 +51,7 @@ $(document).ready(function () {
                 
                 // Add a summary line showing consumption vs return if both values exist
                 if (delivered !== null && returned !== null) {
-                    result += '<br/><b>Consuming: ' + delivered + ' W / Returning: ' + returned + ' W</b>';
+                    result += '<br/><b style="color: #f8f9fa;">Consuming: ' + delivered + ' W / Returning: ' + returned + ' W</b>';
                 }
                 
                 return result;
