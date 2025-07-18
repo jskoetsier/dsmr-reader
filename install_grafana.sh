@@ -12,9 +12,11 @@ sudo apt-get install -y apt-transport-https software-properties-common wget gnup
 
 # Use a simpler approach for adding the repository key
 echo "Downloading Grafana repository key..."
-wget -q -O - https://packages.grafana.com/gpg.key | gpg --dearmor > /tmp/grafana.gpg
-sudo install -m 644 /tmp/grafana.gpg /usr/share/keyrings/grafana-archive-keyring.gpg
-rm /tmp/grafana.gpg
+# Use sudo for all operations that require elevated permissions
+sudo wget -q -O /tmp/grafana.gpg https://packages.grafana.com/gpg.key
+sudo cp /tmp/grafana.gpg /tmp/grafana-archive-keyring.gpg
+sudo install -m 644 /tmp/grafana-archive-keyring.gpg /usr/share/keyrings/grafana-archive-keyring.gpg
+sudo rm /tmp/grafana.gpg /tmp/grafana-archive-keyring.gpg
 
 echo "Adding Grafana repository to sources..."
 echo "deb [signed-by=/usr/share/keyrings/grafana-archive-keyring.gpg] https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list > /dev/null
