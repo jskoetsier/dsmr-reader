@@ -71,6 +71,21 @@ This script will:
 2. Pull the latest changes from the git repository
 3. Install Grafana and create dashboards in one step
 
+### Simplified Setup
+
+If you're experiencing issues with the other scripts, try the simplified setup:
+
+```bash
+./simplified_grafana_setup.sh
+```
+
+This script provides an interactive approach to:
+1. Create an API key (or use an existing one)
+2. Set up the PostgreSQL data source
+3. Create a basic electricity dashboard
+
+This is recommended if you want a minimal setup or are troubleshooting issues with the full installation.
+
 ## Accessing Grafana
 
 After installation, you can access Grafana at:
