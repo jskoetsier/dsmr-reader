@@ -10,10 +10,10 @@ echo "=== Installing Grafana ==="
 echo "Adding Grafana repository..."
 sudo apt-get install -y apt-transport-https software-properties-common wget gnupg curl
 
-# Try a completely different approach for adding the repository
+# Try a direct approach for adding the repository key
 echo "Adding Grafana repository key..."
-# This is deprecated but might work better in this environment
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 963FA27710458545
+# Download the key directly from Grafana website
+curl -fsSL https://packages.grafana.com/gpg.key | sudo apt-key add -
 
 echo "Adding Grafana repository to sources..."
 echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list > /dev/null
