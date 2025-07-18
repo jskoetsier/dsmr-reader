@@ -17,7 +17,41 @@ $(document).ready(function () {
             textStyle: TITLE_TEXTSTYLE_OPTIONS,
             left: 'center',
         },
-        tooltip: TOOLTIP_OPTIONS,
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross',
+                label: {
+                    show: true
+                }
+            },
+            formatter: function (params) {
+                let result = params[0].axisValue + '<br/>';
+                
+                // Find the delivered and returned values
+                let delivered = null;
+                let returned = null;
+                
+                for (let i = 0; i < params.length; i++) {
+                    if (params[i].seriesName === TEXT_DELIVERED) {
+                        delivered = params[i].value;
+                    } else if (params[i].seriesName === TEXT_RETURNED) {
+                        returned = params[i].value;
+                    }
+                    
+                    // Add the standard tooltip line
+                    result += params[i].marker + ' ' + params[i].seriesName + ': ' + params[i].value + 
+                              (params[i].seriesName.includes('kWh') ? ' kWh' : ' W') + '<br/>';
+                }
+                
+                // Add a summary line showing consumption vs return if both values exist
+                if (delivered !== null && returned !== null) {
+                    result += '<br/><b>Consuming: ' + delivered + ' W / Returning: ' + returned + ' W</b>';
+                }
+                
+                return result;
+            }
+        },
         calculable: true,
         grid: GRID_OPTIONS,
         axisPointer: {
