@@ -55,8 +55,21 @@ If you prefer to install manually, follow these steps:
 2. Create the dashboards:
 ```bash
 # On the server after running install_grafana.sh
-./combined_create_dashboards.sh
+./create_grafana_dashboards.sh
 ```
+
+### Direct Remote Installation
+
+For a more direct approach, you can use the remote installation script:
+
+```bash
+./remote_install_grafana.sh
+```
+
+This script will:
+1. Connect to your remote server
+2. Pull the latest changes from the git repository
+3. Install Grafana and create dashboards in one step
 
 ## Accessing Grafana
 
@@ -88,15 +101,19 @@ You can customize the dashboards directly in the Grafana interface:
 If you encounter issues with the API key:
 
 ```bash
-# Check if the API key file exists
+# Check if the API key file exists in either location
 ls -la /home/dsmr/grafana_api_key.txt
+ls -la ./grafana_api_key.txt
 
 # If needed, generate a new API key in Grafana:
 # 1. Log in to Grafana
 # 2. Go to Configuration > API Keys
 # 3. Create a new key with Admin permissions
-# 4. Save the key to /home/dsmr/grafana_api_key.txt:
+# 4. Save the key to both locations:
 echo "API_KEY=your_new_key" > /home/dsmr/grafana_api_key.txt
+echo "API_KEY=your_new_key" > ./grafana_api_key.txt
+chmod 644 /home/dsmr/grafana_api_key.txt
+chmod 644 ./grafana_api_key.txt
 ```
 
 ### Database Connection Issues
@@ -114,6 +131,36 @@ If dashboards fail to import:
 1. Check the Grafana logs: `sudo journalctl -u grafana-server`
 2. Try importing the JSON files manually through the Grafana UI
 3. Verify the API key has Admin permissions
+
+### Installation Hangs
+
+If the installation script hangs during the repository key addition:
+
+1. Try running the installation directly on the server:
+```bash
+ssh dsmr@192.168.1.172
+cd /home/dsmr/dsmr-reader
+git pull
+sudo ./install_grafana.sh
+```
+
+2. If the script still hangs, try running the commands manually:
+```bash
+sudo apt-get install -y apt-transport-https software-properties-common wget gnupg curl
+curl -fsSL https://packages.grafana.com/gpg.key | sudo apt-key add -
+echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+sudo apt-get update
+sudo apt-get install -y grafana
+sudo systemctl daemon-reload
+sudo systemctl start grafana-server
+sudo systemctl enable grafana-server
+```
+
+The installation scripts have been improved to handle various edge cases, including:
+- Using direct curl approach for repository key
+- Better detection of Grafana startup
+- Using the server's actual IP address instead of localhost
+- Saving API keys to multiple locations for better compatibility
 
 ## Updating
 
