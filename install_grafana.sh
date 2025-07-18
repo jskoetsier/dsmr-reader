@@ -69,7 +69,13 @@ if [ -z "$API_KEY" ]; then
 fi
 
 echo "API Key created: $API_KEY"
+# Save API key to both home directory and current directory for better compatibility
 echo "API_KEY=$API_KEY" > /home/dsmr/grafana_api_key.txt
+echo "API_KEY=$API_KEY" > ./grafana_api_key.txt
+# Make sure the files are readable
+chmod 644 /home/dsmr/grafana_api_key.txt
+chmod 644 ./grafana_api_key.txt
+echo "API key saved to /home/dsmr/grafana_api_key.txt and ./grafana_api_key.txt"
 
 # Get PostgreSQL connection details from DSMR Reader
 echo "Getting database connection details..."

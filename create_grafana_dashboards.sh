@@ -8,12 +8,34 @@ echo "=== Creating Grafana Dashboards ==="
 
 # Check if API key exists
 if [ ! -f /home/dsmr/grafana_api_key.txt ]; then
-    echo "API key file not found. Please run install_grafana.sh first."
+    echo "API key file not found at /home/dsmr/grafana_api_key.txt"
+    echo "Checking current directory..."
+    
+    if [ -f ./grafana_api_key.txt ]; then
+        echo "Found API key file in current directory. Using it."
+        source ./grafana_api_key.txt
+    else
+        echo "No API key file found. You can create one manually:"
+        echo "1. Access Grafana at http://192.168.1.172:3000"
+        echo "2. Log in with admin/admin"
+        echo "3. Go to Configuration > API Keys"
+        echo "4. Create a new key with Admin permissions"
+        echo "5. Create a file at /home/dsmr/grafana_api_key.txt with content: API_KEY=your_key_here"
+        echo "6. Run this script again"
+        exit 1
+    fi
+else
+    echo "Loading API key from /home/dsmr/grafana_api_key.txt"
+    source /home/dsmr/grafana_api_key.txt
+fi
+
+# Verify API key was loaded
+if [ -z "$API_KEY" ]; then
+    echo "API key not found in the file. Please make sure the file contains: API_KEY=your_key_here"
     exit 1
 fi
 
-# Load API key
-source /home/dsmr/grafana_api_key.txt
+echo "API key loaded successfully."
 
 # Create dashboards directory if it doesn't exist
 mkdir -p /home/dsmr/grafana-dashboards
