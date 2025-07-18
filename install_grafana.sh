@@ -29,16 +29,42 @@ sudo systemctl daemon-reload
 sudo systemctl start grafana-server
 sudo systemctl enable grafana-server
 
-# Wait for Grafana to start
+# Wait for Grafana to start and check if it's running
 echo "Waiting for Grafana to start..."
-sleep 10
+# Wait longer - up to 30 seconds
+for i in {1..6}; do
+    echo "Waiting $i/6 (5 seconds each)..."
+    sleep 5
+    if systemctl is-active --quiet grafana-server; then
+        echo "Grafana server is running."
+        break
+    fi
+    if [ $i -eq 6 ]; then
+        echo "Grafana server did not start in time. Please check the logs with: sudo journalctl -u grafana-server"
+        echo "You can continue manually by creating an API key in the Grafana UI."
+        echo "After creating the key, save it to /home/dsmr/grafana_api_key.txt in the format: API_KEY=your_key_here"
+        echo "Then run the dashboard creation script manually."
+        exit 1
+    fi
+done
+
+# Get the server's IP address
+SERVER_IP=$(hostname -I | awk '{print $1}')
+if [ -z "$SERVER_IP" ]; then
+    SERVER_IP="localhost"
+fi
+echo "Using server IP: $SERVER_IP"
 
 # Create API key for automated dashboard provisioning
 echo "Setting up Grafana API key..."
-API_KEY=$(curl -X POST -H "Content-Type: application/json" -d '{"name":"dsmr-reader-key", "role": "Admin"}' http://admin:admin@localhost:3000/api/auth/keys | grep -o '"key":"[^"]*' | grep -o '[^"]*$')
+echo "Attempting to connect to Grafana at http://$SERVER_IP:3000"
+API_KEY=$(curl -s -X POST -H "Content-Type: application/json" -d '{"name":"dsmr-reader-key", "role": "Admin"}' http://admin:admin@$SERVER_IP:3000/api/auth/keys | grep -o '"key":"[^"]*' | grep -o '[^"]*$')
 
 if [ -z "$API_KEY" ]; then
     echo "Failed to create API key. Please check Grafana is running and accessible."
+    echo "You can continue manually by creating an API key in the Grafana UI."
+    echo "After creating the key, save it to /home/dsmr/grafana_api_key.txt in the format: API_KEY=your_key_here"
+    echo "Then run the dashboard creation script manually."
     exit 1
 fi
 
