@@ -1,10 +1,11 @@
 #!/bin/bash
 
-echo "=== DSMR Reader Grafana Data Source Fix ==="
-echo "This script will fix the Grafana data source configuration to ensure dashboards show data"
+echo "=== DSMR Reader Grafana Datasource Fix ==="
+echo "This script will fix the Grafana datasource configuration for DSMR Reader"
 
 # Configuration
 GRAFANA_URL="http://localhost:3000"
+DATASOURCE_NAME="PostgreSQL"
 POSTGRES_HOST="localhost"
 POSTGRES_PORT="5432"
 POSTGRES_DB="dsmrreader"
@@ -17,135 +18,172 @@ if ! command -v curl &> /dev/null; then
     exit 1
 fi
 
-# Check if jq is installed
-if ! command -v jq &> /dev/null; then
-    echo "WARNING: jq is not installed. This script will work better with jq installed."
-    echo "Installing jq..."
-    sudo apt-get update && sudo apt-get install -y jq
-    if [ $? -ne 0 ]; then
-        echo "Failed to install jq. Continuing without it, but some functionality may be limited."
+# Get admin credentials
+echo "Please enter your Grafana admin username (default: admin):"
+read -r GRAFANA_USER
+GRAFANA_USER=${GRAFANA_USER:-admin}
+
+echo "Please enter your Grafana admin password:"
+read -r -s GRAFANA_PASSWORD
+
+# Get authentication token
+echo -e "\nGetting authentication token..."
+TOKEN_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" \
+    -d '{"username":"'"$GRAFANA_USER"'","password":"'"$GRAFANA_PASSWORD"'"}' \
+    "$GRAFANA_URL/api/auth/login")
+
+if echo "$TOKEN_RESPONSE" | grep -q "token"; then
+    AUTH_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    if [ -z "$AUTH_TOKEN" ]; then
+        echo "ERROR: Failed to get authentication token."
+        exit 1
     fi
+    echo "Authentication successful."
+else
+    echo "ERROR: Authentication failed. Please check your credentials."
+    exit 1
 fi
-
-# Function to prompt for API key
-get_api_key() {
-    echo "Please enter your Grafana API key (or create one in Grafana UI > Configuration > API Keys):"
-    read -s API_KEY
-    
-    if [ -z "$API_KEY" ]; then
-        echo "No API key provided. Please create one in Grafana UI and try again."
-        exit 1
-    fi
-    
-    echo "Testing API key..."
-    response=$(curl -s -H "Authorization: Bearer $API_KEY" "$GRAFANA_URL/api/datasources")
-    
-    if [[ "$response" == *"Invalid API key"* ]] || [[ "$response" == *"Unauthorized"* ]]; then
-        echo "ERROR: Invalid API key. Please check and try again."
-        exit 1
-    fi
-    
-    echo "API key is valid!"
-    return 0
-}
-
-# Get API key
-get_api_key
-
-# Check if PostgreSQL datasource exists
-echo "Checking for existing PostgreSQL datasource..."
-datasources=$(curl -s -H "Authorization: Bearer $API_KEY" "$GRAFANA_URL/api/datasources")
 
 # Check if datasource exists
-datasource_id=""
-if command -v jq &> /dev/null; then
-    # Use jq if available
-    datasource_id=$(echo "$datasources" | jq '.[] | select(.name=="PostgreSQL") | .id')
-else
-    # Fallback to grep
-    if echo "$datasources" | grep -q '"name":"PostgreSQL"'; then
-        echo "PostgreSQL datasource exists, but we'll recreate it to ensure proper configuration."
-        # Extract ID using grep and sed (basic approach)
-        datasource_id=$(echo "$datasources" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://')
-    fi
-fi
+echo "Checking if datasource exists..."
+response=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$GRAFANA_URL/api/datasources/name/$DATASOURCE_NAME")
 
-# Delete existing datasource if found
-if [ ! -z "$datasource_id" ]; then
-    echo "Deleting existing PostgreSQL datasource (ID: $datasource_id)..."
-    curl -s -X DELETE -H "Authorization: Bearer $API_KEY" "$GRAFANA_URL/api/datasources/$datasource_id"
-    echo "Existing datasource deleted."
-fi
-
-# Create new PostgreSQL datasource
-echo "Creating new PostgreSQL datasource..."
-datasource_json='{
-  "name": "PostgreSQL",
-  "type": "postgres",
-  "url": "'$POSTGRES_HOST':'$POSTGRES_PORT'",
-  "access": "proxy",
-  "user": "'$POSTGRES_USER'",
-  "database": "'$POSTGRES_DB'",
-  "basicAuth": false,
-  "isDefault": true,
-  "jsonData": {
-    "postgresVersion": 1200,
-    "sslmode": "disable",
-    "timescaledb": false
-  },
-  "secureJsonData": {
-    "password": "'$POSTGRES_PASSWORD'"
-  }
-}'
-
-response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $API_KEY" -d "$datasource_json" "$GRAFANA_URL/api/datasources")
-
-if command -v jq &> /dev/null; then
-    if [ "$(echo "$response" | jq -r '.message')" == "Datasource added" ]; then
+if echo "$response" | grep -q "Data source not found"; then
+    echo "Creating new PostgreSQL datasource..."
+    response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $AUTH_TOKEN" "$GRAFANA_URL/api/datasources" -d '{
+        "name": "'"$DATASOURCE_NAME"'",
+        "type": "postgres",
+        "url": "'"$POSTGRES_HOST:$POSTGRES_PORT"'",
+        "database": "'"$POSTGRES_DB"'",
+        "user": "'"$POSTGRES_USER"'",
+        "secureJsonData": {
+            "password": "'"$POSTGRES_PASSWORD"'"
+        },
+        "jsonData": {
+            "sslmode": "disable",
+            "postgresVersion": 1200,
+            "timescaledb": false
+        },
+        "access": "proxy",
+        "isDefault": true
+    }')
+    
+    if echo "$response" | grep -q "id"; then
         echo "PostgreSQL datasource created successfully!"
-    else
-        echo "ERROR: Failed to create datasource. Response: $(echo "$response" | jq -c .)"
-    fi
-else
-    if [[ "$response" == *"Datasource added"* ]]; then
-        echo "PostgreSQL datasource created successfully!"
+        # Extract datasource ID
+        datasource_id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://')
     else
         echo "ERROR: Failed to create datasource. Response: $response"
+        exit 1
+    fi
+else
+    echo "Updating existing PostgreSQL datasource..."
+    datasource_id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://')
+    
+    response=$(curl -s -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $AUTH_TOKEN" "$GRAFANA_URL/api/datasources/$datasource_id" -d '{
+        "name": "'"$DATASOURCE_NAME"'",
+        "type": "postgres",
+        "url": "'"$POSTGRES_HOST:$POSTGRES_PORT"'",
+        "database": "'"$POSTGRES_DB"'",
+        "user": "'"$POSTGRES_USER"'",
+        "secureJsonData": {
+            "password": "'"$POSTGRES_PASSWORD"'"
+        },
+        "jsonData": {
+            "sslmode": "disable",
+            "postgresVersion": 1200,
+            "timescaledb": false
+        },
+        "access": "proxy",
+        "isDefault": true
+    }')
+    
+    if echo "$response" | grep -q "datasource"; then
+        echo "PostgreSQL datasource updated successfully!"
+    else
+        echo "ERROR: Failed to update datasource. Response: $response"
+        exit 1
     fi
 fi
 
 # Test the datasource
 echo "Testing the datasource connection..."
-if command -v jq &> /dev/null; then
-    datasource_id=$(echo "$response" | jq -r '.id')
+test_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $AUTH_TOKEN" \
+    "$GRAFANA_URL/api/datasources/proxy/$datasource_id/query" \
+    -d '{"queries":[{"refId":"A","datasource":{"type":"postgres","uid":"'"$datasource_id"'"},"rawSql":"SELECT 1 as value;","format":"table"}]}')
+
+if echo "$test_response" | grep -q '"value":1'; then
+    echo "Datasource connection test successful!"
 else
-    # Basic extraction with grep and sed
-    datasource_id=$(echo "$response" | grep -o '"id":[0-9]*' | head -1 | sed 's/"id"://')
+    echo "WARNING: Datasource connection test failed. Please check your PostgreSQL connection settings."
 fi
 
-if [ ! -z "$datasource_id" ]; then
-    test_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $API_KEY" "$GRAFANA_URL/api/datasources/$datasource_id/health")
+# Fix dashboard queries
+echo -e "\nWould you like to fix dashboard queries to use correct column names? (y/n)"
+read -r fix_queries
+
+if [[ "$fix_queries" == "y" || "$fix_queries" == "Y" ]]; then
+    echo "Fixing dashboard queries..."
     
-    if command -v jq &> /dev/null; then
-        status=$(echo "$test_response" | jq -r '.status')
-        if [ "$status" == "OK" ]; then
-            echo "Datasource connection test successful!"
-        else
-            echo "WARNING: Datasource connection test failed. Response: $(echo "$test_response" | jq -c .)"
-        fi
-    else
-        if [[ "$test_response" == *"\"status\":\"OK\""* ]]; then
-            echo "Datasource connection test successful!"
-        else
-            echo "WARNING: Datasource connection test failed. Response: $test_response"
-        fi
+    # Check if jq is installed
+    if ! command -v jq &> /dev/null; then
+        echo "ERROR: jq is not installed. Please install it first to fix dashboard queries."
+        exit 1
     fi
-else
-    echo "WARNING: Could not extract datasource ID for testing."
+    
+    # Get list of dashboards
+    dashboard_list=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$GRAFANA_URL/api/search?type=dash-db")
+    
+    # Extract dashboard UIDs
+    dashboard_uids=$(echo "$dashboard_list" | jq -r '.[] | .uid')
+    
+    if [ -z "$dashboard_uids" ]; then
+        echo "No dashboards found."
+    else
+        for uid in $dashboard_uids; do
+            echo "Processing dashboard with UID: $uid"
+            
+            # Get dashboard JSON
+            dashboard_json=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$GRAFANA_URL/api/dashboards/uid/$uid")
+            
+            # Create a temporary file for the dashboard JSON
+            temp_file=$(mktemp)
+            echo "$dashboard_json" > "$temp_file"
+            
+            # Fix queries in the dashboard JSON - replace column names in SQL queries
+            sed -i.bak 's/"rawSql": "SELECT read_at/"rawSql": "SELECT timestamp/g' "$temp_file"
+            sed -i.bak 's/FROM dsmr_datalogger_dsmrreading WHERE read_at/FROM dsmr_datalogger_dsmrreading WHERE timestamp/g' "$temp_file"
+            sed -i.bak 's/GROUP BY read_at/GROUP BY timestamp/g' "$temp_file"
+            sed -i.bak 's/ORDER BY read_at/ORDER BY timestamp/g' "$temp_file"
+            
+            # Read the modified JSON
+            fixed_json=$(cat "$temp_file")
+            
+            # Extract the dashboard part only
+            dashboard_part=$(echo "$fixed_json" | jq '.dashboard')
+            
+            # Update the dashboard
+            update_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $AUTH_TOKEN" \
+                "$GRAFANA_URL/api/dashboards/db" -d '{
+                "dashboard": '"$dashboard_part"',
+                "overwrite": true
+            }')
+            
+            if echo "$update_response" | grep -q '"status":"success"'; then
+                echo "Dashboard $uid updated successfully."
+            else
+                echo "WARNING: Failed to update dashboard $uid."
+                echo "Response: $update_response"
+            fi
+            
+            # Clean up
+            rm "$temp_file" "$temp_file.bak"
+        done
+    fi
 fi
 
 echo -e "\n=== Fix Complete ==="
-echo "The PostgreSQL datasource has been recreated with the correct settings."
+echo "The PostgreSQL datasource has been configured with the correct settings."
 echo "Please refresh your Grafana dashboards to see if data appears now."
 echo "If dashboards are still empty, run the diagnose_grafana.sh script to check for data issues."
 echo "You may also need to restart Grafana: sudo systemctl restart grafana-server"
