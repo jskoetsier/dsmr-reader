@@ -25,6 +25,12 @@ Current release series
     :depth: 1
 
 
+v5.12.1
+-----------------------
+
+- ``Fixed`` Replaced deprecated Django imports: Changed ``django.conf.urls`` to ``django.urls`` for Django 3.1+ compatibility
+
+
 v5.11.0
 -----------------------
 
