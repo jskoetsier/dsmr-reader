@@ -1,4 +1,4 @@
-from django.conf.urls import include
+from django.urls import include
 from django.urls.conf import path
 
 from dsmr_api.views import v2 as views
