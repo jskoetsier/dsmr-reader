@@ -25,6 +25,11 @@ Current release series
     :depth: 1
 
 
+v5.12.2
+-----------------------
+
+- ``Fixed`` Mobile menu toggle bug on viewports ≤768px - hamburger menu now correctly expands sidebar
+
 v5.12.1
 -----------------------
 
