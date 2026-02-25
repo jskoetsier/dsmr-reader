@@ -215,10 +215,18 @@
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 
     <script>
-        // Toggle sidebar
+        // Toggle sidebar - handles both desktop and mobile
         document.getElementById('sidebarToggle').addEventListener('click', function() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-            document.getElementById('content').classList.toggle('expanded');
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                sidebar.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                content.classList.toggle('expanded');
+            }
         });
 
         // Handle dark mode
@@ -234,12 +242,17 @@
 
         // Responsive sidebar behavior
         function handleResize() {
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            
             if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.add('collapsed');
-                document.getElementById('content').classList.add('expanded');
+                // Mobile: Remove desktop classes and hide sidebar
+                sidebar.classList.remove('collapsed');
+                sidebar.classList.remove('show');
+                content.classList.remove('expanded');
             } else {
-                document.getElementById('sidebar').classList.remove('collapsed');
-                document.getElementById('content').classList.remove('expanded');
+                // Desktop: Remove mobile classes
+                sidebar.classList.remove('show');
             }
         }
 
