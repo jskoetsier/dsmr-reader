@@ -7,14 +7,16 @@ This script tries different DSMR version settings and checks if they resolve the
 import os
 import sys
 import time
-import django
 from decimal import Decimal
+
+import django
 
 # Set up Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dsmrreader.settings")
 django.setup()
 
 from django.utils import timezone
+
 from dsmr_datalogger.models.reading import DsmrReading
 from dsmr_datalogger.models.settings import DataloggerSettings
 from dsmr_datalogger.models.statistics import MeterStatistics
@@ -51,9 +53,9 @@ def check_consumption_data():
         if latest_reading.electricity_currently_delivered == 0:
             # Check if phase power is reported
             phase_power = (
-                (latest_reading.phase_currently_delivered_l1 or 0) +
-                (latest_reading.phase_currently_delivered_l2 or 0) +
-                (latest_reading.phase_currently_delivered_l3 or 0)
+                (latest_reading.phase_currently_delivered_l1 or 0)
+                + (latest_reading.phase_currently_delivered_l2 or 0)
+                + (latest_reading.phase_currently_delivered_l3 or 0)
             )
 
             if phase_power > 0:
@@ -61,26 +63,23 @@ def check_consumption_data():
                     "status": "inconsistent",
                     "message": "Phase power is reported but total power is zero",
                     "phase_power": phase_power,
-                    "total_power": latest_reading.electricity_currently_delivered
+                    "total_power": latest_reading.electricity_currently_delivered,
                 }
             else:
                 return {
                     "status": "zero",
                     "message": "Both total power and phase power are zero",
                     "phase_power": phase_power,
-                    "total_power": latest_reading.electricity_currently_delivered
+                    "total_power": latest_reading.electricity_currently_delivered,
                 }
         else:
             return {
                 "status": "ok",
                 "message": "Consumption data is being recorded correctly",
-                "total_power": latest_reading.electricity_currently_delivered
+                "total_power": latest_reading.electricity_currently_delivered,
             }
     except IndexError:
-        return {
-            "status": "no_data",
-            "message": "No readings found in the database"
-        }
+        return {"status": "no_data", "message": "No readings found in the database"}
 
 
 def try_dsmr_version(version):
@@ -165,8 +164,12 @@ def fix_consumption_issue():
     print_header("Fix Results")
 
     if fixed:
-        print_success(f"The consumption issue has been fixed by changing the DSMR version to {successful_version}!")
-        print("\nThe new setting has been saved. You should now see consumption data in the dashboard.")
+        print_success(
+            f"The consumption issue has been fixed by changing the DSMR version to {successful_version}!"
+        )
+        print(
+            "\nThe new setting has been saved. You should now see consumption data in the dashboard."
+        )
     else:
         print_error("Could not fix the consumption issue by changing the DSMR version.")
         print(f"\nRestoring original DSMR version: {original_version}")
@@ -182,9 +185,13 @@ def fix_consumption_issue():
 
         print("\nPossible solutions:")
         print("1. Check the wiring of your smart meter")
-        print("2. Contact your energy provider to check if your smart meter is correctly configured")
+        print(
+            "2. Contact your energy provider to check if your smart meter is correctly configured"
+        )
         print("3. Check the DSMR Reader logs for any errors")
-        print("4. Try manually changing other settings in the DSMR Reader admin interface")
+        print(
+            "4. Try manually changing other settings in the DSMR Reader admin interface"
+        )
 
 
 def manual_fix():
@@ -194,11 +201,11 @@ def manual_fix():
     # Check if there are readings with zero consumption but non-zero phase power
     readings_to_fix = DsmrReading.objects.filter(
         electricity_currently_delivered=0,
-        timestamp__gte=timezone.now() - timezone.timedelta(hours=24)
+        timestamp__gte=timezone.now() - timezone.timedelta(hours=24),
     ).exclude(
         phase_currently_delivered_l1=None,
         phase_currently_delivered_l2=None,
-        phase_currently_delivered_l3=None
+        phase_currently_delivered_l3=None,
     )
 
     count = readings_to_fix.count()
@@ -210,9 +217,11 @@ def manual_fix():
     print(f"Found {count} readings with zero consumption but non-zero phase power.")
 
     # Ask for confirmation
-    confirm = input("\nDo you want to fix these readings by setting electricity_currently_delivered to the sum of phase power? (y/n): ")
+    confirm = input(
+        "\nDo you want to fix these readings by setting electricity_currently_delivered to the sum of phase power? (y/n): "
+    )
 
-    if confirm.lower() != 'y':
+    if confirm.lower() != "y":
         print("Manual fix aborted.")
         return
 
@@ -221,14 +230,14 @@ def manual_fix():
 
     for reading in readings_to_fix:
         phase_power = (
-            (reading.phase_currently_delivered_l1 or Decimal('0')) +
-            (reading.phase_currently_delivered_l2 or Decimal('0')) +
-            (reading.phase_currently_delivered_l3 or Decimal('0'))
+            (reading.phase_currently_delivered_l1 or Decimal("0"))
+            + (reading.phase_currently_delivered_l2 or Decimal("0"))
+            + (reading.phase_currently_delivered_l3 or Decimal("0"))
         )
 
         if phase_power > 0:
             reading.electricity_currently_delivered = phase_power
-            reading.save(update_fields=['electricity_currently_delivered'])
+            reading.save(update_fields=["electricity_currently_delivered"])
             fixed_count += 1
 
     print_success(f"Fixed {fixed_count} readings.")

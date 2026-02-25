@@ -27,3 +27,4 @@
 /compose.override.yml
 /Dockerfile
 *.bak
+AGENTS.md
