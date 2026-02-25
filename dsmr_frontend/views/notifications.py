@@ -1,8 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views.generic.base import TemplateView, View
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.edit import FormView
 
 from dsmr_frontend.forms import NotificationReadForm
@@ -21,7 +19,6 @@ class Notifications(ConfigurableLoginRequiredMixin, TemplateView):
         return context_data
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class XhrMarkNotificationRead(LoginRequiredMixin, FormView):
     """XHR view for marking one notification as read."""
 
@@ -34,7 +31,6 @@ class XhrMarkNotificationRead(LoginRequiredMixin, FormView):
         return JsonResponse({})
 
 
-@method_decorator(csrf_exempt, name="dispatch")
 class XhrMarkAllNotificationsRead(LoginRequiredMixin, View):
     """XHR view for marking all notifications as read."""
 

@@ -1,24 +1,26 @@
 import logging
 
 from django.http.response import (
-    HttpResponseNotAllowed,
-    HttpResponseForbidden,
-    HttpResponseBadRequest,
-    HttpResponseServerError,
     HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    HttpResponseServerError,
 )
 from django.views.generic.base import View
+from ratelimit.decorators import ratelimit
 
-from dsmr_datalogger.exceptions import InvalidTelegramError
-from dsmr_api.models import APISettings
-from dsmr_api.forms import DsmrReadingForm
 import dsmr_datalogger.services.datalogger
-
+from dsmr_api.forms import DsmrReadingForm
+from dsmr_api.models import APISettings
+from dsmr_datalogger.exceptions import InvalidTelegramError
 
 logger = logging.getLogger("dsmrreader")
 
 
 class DataloggerDsmrReading(View):
+    @ratelimit(key="ip", rate="100/h", method="POST")
+    @ratelimit(key="header:HTTP_X_AUTHKEY", rate="1000/h", method="POST")
     def post(self, request):
         api_settings = APISettings.get_solo()
 

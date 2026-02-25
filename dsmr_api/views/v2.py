@@ -1,45 +1,46 @@
 from decimal import Decimal
 
+from django.conf import settings
+from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
-from django.utils import timezone
-from django.conf import settings
 
-from dsmr_api.schemas import DsmrReaderSchema
-from dsmr_consumption.models.energysupplier import EnergySupplierPrice
-from dsmr_consumption.serializers.consumption import (
-    ElectricityConsumptionSerializer,
-    GasConsumptionSerializer,
-    EnergySupplierPriceSerializer,
-    QuarterHourPeakElectricityConsumptionSerializer,
+import dsmr_backend.services.backend
+import dsmr_consumption.services
+import dsmr_datalogger.signals
+from dsmr_api.filters import (
+    DayStatisticsFilter,
+    DsmrReadingFilter,
+    ElectricityConsumptionFilter,
+    EnergySupplierPriceFilter,
+    GasConsumptionFilter,
+    HourStatisticsFilter,
+    QuarterHourPeakElectricityConsumptionFilter,
 )
+from dsmr_api.schemas import DsmrReaderSchema
 from dsmr_consumption.models.consumption import (
     ElectricityConsumption,
     GasConsumption,
     QuarterHourPeakElectricityConsumption,
 )
+from dsmr_consumption.models.energysupplier import EnergySupplierPrice
+from dsmr_consumption.serializers.consumption import (
+    ElectricityConsumptionSerializer,
+    EnergySupplierPriceSerializer,
+    GasConsumptionSerializer,
+    QuarterHourPeakElectricityConsumptionSerializer,
+)
+from dsmr_datalogger.models.reading import DsmrReading
 from dsmr_datalogger.models.statistics import MeterStatistics
+from dsmr_datalogger.serializers.reading import DsmrReadingSerializer
 from dsmr_datalogger.serializers.statistics import MeterStatisticsSerializer
+from dsmr_stats.models.statistics import DayStatistics, HourStatistics
 from dsmr_stats.serializers.statistics import (
     DayStatisticsSerializer,
     HourStatisticsSerializer,
 )
-from dsmr_stats.models.statistics import DayStatistics, HourStatistics
-from dsmr_datalogger.serializers.reading import DsmrReadingSerializer
-from dsmr_datalogger.models.reading import DsmrReading
-from dsmr_api.filters import (
-    DsmrReadingFilter,
-    DayStatisticsFilter,
-    ElectricityConsumptionFilter,
-    GasConsumptionFilter,
-    HourStatisticsFilter,
-    EnergySupplierPriceFilter,
-    QuarterHourPeakElectricityConsumptionFilter,
-)
-import dsmr_consumption.services
-import dsmr_backend.services.backend
-import dsmr_datalogger.signals
 
 
 class DsmrReadingViewSet(
@@ -100,6 +101,7 @@ class DsmrReadingViewSet(
     """
 
     schema = DsmrReaderSchema(post="DSMR readings: Create", get="DSMR readings: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "timestamp"
     queryset = DsmrReading.objects.all()
     serializer_class = DsmrReadingSerializer
@@ -138,6 +140,7 @@ class MeterStatisticsViewSet(
     schema = DsmrReaderSchema(
         get="Meter statistics: Get", patch="Meter statistics: Partial update"
     )
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     serializer_class = MeterStatisticsSerializer
 
     def get_queryset(self):  # pragma: nocover
@@ -182,6 +185,7 @@ class EnergySupplierPriceViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     schema = DsmrReaderSchema(get="Energy supplier prices: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     queryset = EnergySupplierPrice.objects.all()
     serializer_class = EnergySupplierPriceSerializer
     filterset_class = EnergySupplierPriceFilter
@@ -193,6 +197,7 @@ class TodayConsumptionView(APIView):
     """Returns the consumption of the current day so far."""
 
     schema = DsmrReaderSchema(get="Today's consumption: Get")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     IGNORE_FIELDS = (
         "electricity1_start",
         "electricity2_start",
@@ -241,6 +246,7 @@ class ElectricityLiveView(APIView):
     """Returns the live electricity consumption, containing the same data as the Dashboard header."""
 
     schema = DsmrReaderSchema(get="Electricity consumption: Live")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
     def get(self, request):
         return Response(dsmr_consumption.services.live_electricity_consumption())
@@ -250,6 +256,7 @@ class GasLiveView(APIView):
     """Returns the latest gas consumption."""
 
     schema = DsmrReaderSchema(get="Gas consumption: Live")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
     def get(self, request):
         return Response(dsmr_consumption.services.live_gas_consumption())
@@ -273,6 +280,7 @@ class ElectricityConsumptionViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     schema = DsmrReaderSchema(get="Electricity consumption: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "read_at"
     queryset = ElectricityConsumption.objects.all()
     serializer_class = ElectricityConsumptionSerializer
@@ -299,6 +307,7 @@ class QuarterHourPeakElectricityConsumptionViewSet(viewsets.ReadOnlyModelViewSet
     """
 
     schema = DsmrReaderSchema(get="Quarter-hour peak electricity consumption: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "read_at_start"
     queryset = QuarterHourPeakElectricityConsumption.objects.all()
     serializer_class = QuarterHourPeakElectricityConsumptionSerializer
@@ -325,6 +334,7 @@ class GasConsumptionViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     schema = DsmrReaderSchema(get="Gas consumption: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "read_at"
     queryset = GasConsumption.objects.all()
     serializer_class = GasConsumptionSerializer
@@ -361,6 +371,7 @@ class DayStatisticsViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSe
     """
 
     schema = DsmrReaderSchema(post="Day statistics: Create", get="Day statistics: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "day"
     queryset = DayStatistics.objects.all()
     serializer_class = DayStatisticsSerializer
@@ -390,6 +401,7 @@ class HourStatisticsViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     schema = DsmrReaderSchema(get="Hour statistics: List")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     FIELD = "hour_start"
     queryset = HourStatistics.objects.all()
     serializer_class = HourStatisticsSerializer
@@ -402,6 +414,7 @@ class VersionView(APIView):
     """Returns the version of DSMR-reader you are running."""
 
     schema = DsmrReaderSchema(get="Application: Version")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
     def get(self, request):
         return Response(
@@ -415,6 +428,7 @@ class MonitoringIssuesView(APIView):
     """Returns any monitoring issues found. Reflects the same (issue) data as displayed on the Status page."""
 
     schema = DsmrReaderSchema(get="Application: Monitoring")
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
 
     def get(self, request):
         issues = dsmr_backend.services.backend.request_monitoring_status()
