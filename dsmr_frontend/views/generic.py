@@ -43,8 +43,16 @@ class ReadTheDocsRedirectView(RedirectView):
         return super(ReadTheDocsRedirectView, self).get(request, *args, **kwargs)
 
 
-class ChangelogRedirect(ReadTheDocsRedirectView):
-    subpage = "reference/changelog.html"
+class ChangelogRedirect(RedirectView):
+    permanent = False
+
+    def get(self, request, *args, **kwargs):
+        self.url = (
+            "https://github.com/jskoetsier/dsmr-reader/blob/{}/CHANGELOG.md".format(
+                settings.DSMRREADER_MAIN_BRANCH
+            )
+        )
+        return super(ChangelogRedirect, self).get(request, *args, **kwargs)
 
 
 class DocsRedirect(ReadTheDocsRedirectView):

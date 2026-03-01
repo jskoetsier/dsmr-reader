@@ -1,6 +1,6 @@
 """
-    Default settings as defined in the base.py config.
-    Some settings can be overridden by system env vars or the .env.
+Default settings as defined in the base.py config.
+Some settings can be overridden by system env vars or the .env.
 """
 
 from decouple import Csv, Choices
@@ -19,9 +19,7 @@ DSMRREADER_LOGLEVEL = config(
 )
 
 if DSMRREADER_LOGLEVEL in ("DEBUG", "WARNING"):
-    LOGGING["loggers"]["dsmrreader"][
-        "level"
-    ] = DSMRREADER_LOGLEVEL  # type:ignore[index]
+    LOGGING["loggers"]["dsmrreader"]["level"] = DSMRREADER_LOGLEVEL  # type:ignore[index]
 
 # Query debugging. VERY VERBOSE! Undocumented on purpose as well.
 DSMRREADER_LOG_QUERIES = config("DSMRREADER_LOG_QUERIES", cast=bool, default=False)
@@ -63,7 +61,7 @@ DSMRREADER_VERSION = dsmrreader.__version__
 DSMRREADER_RAW_VERSION = dsmrreader.VERSION
 DSMRREADER_USER_AGENT = "DSMR-reader v{}".format(DSMRREADER_VERSION)
 DSMRREADER_LATEST_RELEASES_LIST = (
-    "https://api.github.com/repos/dsmrreader/dsmr-reader/releases"
+    "https://api.github.com/repos/jskoetsier/dsmr-reader/releases"
 )
 
 # Scheduled Process modules. DO NOT RELOCATE WITHOUT DB MIGRATION!
