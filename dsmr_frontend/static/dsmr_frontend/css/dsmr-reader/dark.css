@@ -113,3 +113,8 @@ html body.dark-mode {
 .dark-mode .badge {
     color: #fff !important;
 }
+
+.dark-mode .bg-black {
+    background-color: #444 !important;
+    color: #fff !important;
+}
