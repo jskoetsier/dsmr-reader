@@ -38,6 +38,7 @@
 v5.12.2
 -----------------------
 
+- Fixed Badge text color in dark mode on statistics page - data now visible without hovering
 - Fixed Mobile menu toggle bug on viewports ≤768px - hamburger menu now correctly expands sidebar
 
 v5.12.1
